@@ -1,0 +1,23 @@
+name: Sandbox Workflow
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        required: true
+        type: string
+      dockerfile-path:
+        default: Dockerfile
+        type: string
+
+jobs:
+  build:
+    name: Docker Build job
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ inputs.dockerfile-path }}
+
+          
