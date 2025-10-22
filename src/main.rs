@@ -7,7 +7,8 @@ fn index() -> &'static str {
 
 #[get("/test")]
 fn test() -> &'static str{
-    "Testing"
+    print!("Printing test");
+    return "Testing"
 }
 
 #[launch]
