@@ -12,7 +12,12 @@ fn test() -> &'static str{
     return "Testing"
 }
 
+#[get("/new")]
+fn new_endpoint() -> &'static str{
+    "New endpoint"
+}
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, test])
+    rocket::build().mount("/", routes![index, test, new_endpoint])
 }
