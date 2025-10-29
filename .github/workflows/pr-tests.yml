@@ -1,0 +1,161 @@
+name: Code Quality Check
+permissions: 
+  contents: read
+  checks: write   # Required to post the pass/fail status back to the PR
+  actions: write    # Required by actions/cache to read cache
+  pull-requests: write # Required to write comments on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+      - staging
+      - dev
+
+jobs:
+  format-check:
+    name: 💅 Format Check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: 20.x
+
+      - name: Check Formatting
+        run: yarn format:check
+
+  lint:
+    name: 🧹 Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: 20.x
+
+      - name: Run Linter
+        run: yarn lint
+
+  unit-test:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: 20.x
+
+      - name: Run Unit Tests
+        run: yarn jest --watchAll=false --ci # TODO: --reporters=jest-junit
+
+      # TODO: 
+      # - name: Upload Test Report
+      #   uses: actions/upload-artifact@v4
+      #   if: always() # Always upload, even if tests fail
+      #   with:
+      #     name: jest-junit-report
+      #     path: junit.xml # Path specified in your jest-junit config
+
+  coverage-test:
+    name: 📊 Coverage Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: 20.x
+
+      - name: Run Jest Tests with Coverage
+        run: |
+          cd packages/mobile
+          yarn jest:mobile --coverage --ci
+
+  post-summary-comment:
+    name: 💬 Post Summary
+    runs-on: ubuntu-24.04
+    needs: [format-check, lint, unit-test, coverage-test]
+    if: always()
+    steps:
+      - name: Build Comment Body
+        id: build-comment
+        shell: bash
+        run: |
+          lint_report='${{ needs.lint.outputs.report }}'
+          lint_warnings=$(echo $lint_report | jq .warnings)
+          lint_errors=$(echo $lint_report | jq .errors)
+
+          # --- Format Check Status ---
+          format_status="✅ Passed"
+          [[ "${{ needs.format-check.result }}" == "failure" ]] && format_status="❌ FAILED"
+          [[ "${{ needs.format-check.result }}" == "skipped" ]] && format_status="⚠️ Skipped"
+
+          # --- Test Status ---
+          unit_test_status="✅ Passed"
+          [[ "${{ needs.unit-test.result }}" == "failure" ]] && unit_test_status="❌ FAILED"
+          [[ "${{ needs.unit-test.result }}" == "skipped" ]] && unit_test_status="⚠️ Skipped"
+
+          # --- Lint Status ---
+          lint_status="✅ Passed" # Default
+          if [[ "${{ needs.lint.result }}" == "failure" ]]; then
+            lint_status="❌ FAILED ($lint_errors errors)"
+          elif [[ "$lint_warnings" -gt 0 ]]; then
+            # This is the new state you wanted
+            lint_status="⚠️ Passed ($lint_warnings warnings)"
+          fi
+
+          # --- Coverage Status ---
+          coverage_status="✅ Passed"
+          [[ "${{ needs.coverage-test.result }}" == "failure" ]] && coverage_status="❌ FAILED"
+          [[ "${{ needs.coverage-test.result }}" == "skipped" ]] && coverage_status="⚠️ Skipped"
+
+          # --- Build Comment Body ---
+          body="## 🤖 CI Quality Check Summary\n\n"
+          body="$body | Job | Status |\n"
+          body="$body | --- | --- |\n"
+          body="$body | 💅 **Format Check** | $format_status |\n"
+          body="$body | 🧹 **Lint** | $lint_status |\n"
+          body="$body | 🧪 **Unit Tests** | $unit_test_status |\n"
+          body="$body | 📊 **Coverage Tests** | $coverage_status |\n\n---\n"
+
+          # --- Build Actions Needed ---
+          actions_needed=""
+          if [[ "${{ needs.format-check.result }}" == "failure" ]]; then
+            actions_needed="$actions_needed\n> **Action Required:** Run \`yarn format:fix\`"
+          fi
+          if [[ "${{ needs.lint.result }}" == "failure" ]]; then
+            actions_needed="$actions_needed\n> **Action Required:** Lint errors found. Check logs."
+          elif [[ "$lint_warnings" -gt 0 ]]; then
+            actions_needed="$actions_needed\n> **FYI:** Lint job passed but has $lint_warnings warnings."
+          fi
+          if [[ "${{ needs.unit-test.result }}" == "failure" ]]; then
+            actions_needed="$actions_needed\n> **Action Required:** Fix failing unit tests."
+          fi
+
+          if [[ "${{ needs.coverage-test.result }}" == "failure" ]]; then
+            actions_needed="$actions_needed\n> **Action Required:** Coverage check failed."
+          fi
+          
+          if [[ -n "$actions_needed" ]]; then
+            body="$body\n### Fixes Required\n$actions_needed"
+          elif [[ "${{ job.status }}" == "success" ]]; then
+            body="$body\nAll checks passed. Good to merge. 👍"
+          fi
+          
+          echo -e "$body" > comment-body.md
+
+      - name: Create or Update PR Comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: ./comment-body.md
+          edit-mode: replace
+          unique-id-prefix: ci-quality-summary
