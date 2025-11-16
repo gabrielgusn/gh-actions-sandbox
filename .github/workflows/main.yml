@@ -17,6 +17,7 @@ jobs:
   build:
     name: Docker Build job
     runs-on: ubuntu-latest
+    environment: prd-build
     steps:
       - name: Starting Pipeline
         run: echo "Starting pipeline for ${{ inputs.image-name }}"
@@ -30,5 +31,25 @@ jobs:
           failure-threshold: ${{ inputs.failure-threshhold }}
       - name: Build image
         shell: bash
-        run: docker build . -t ${{ inputs.image-name }}
-            
+        run: |
+          docker build -f ${{ inputs.dockerfile-path }} . -t ${{ inputs.image-name }}
+          docker save ${{ inputs.image-name }} -o ${{ inputs.image-name }}.tar
+      - name: Upload image as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ inputs.image-name }}
+          path: ${{ inputs.image-name }}.tar
+
+  deploy:
+    name: Docker Deploy job
+    runs-on: ubuntu-latest
+    needs: build
+    environment: prd-deploy
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.image-name }}
+      - name: Successfully Deployed
+        run: echo "Successfully deployed ${{ inputs.image-name }}"
+        shell: bash
