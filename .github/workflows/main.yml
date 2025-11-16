@@ -35,7 +35,7 @@ jobs:
           docker build -f ${{ inputs.dockerfile-path }} . -t ${{ inputs.image-name }}
           docker save ${{ inputs.image-name }} -o ${{ inputs.image-name }}.tar
       - name: Upload image as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ inputs.image-name }}
           path: ${{ inputs.image-name }}.tar
@@ -47,7 +47,7 @@ jobs:
     environment: prd-deploy
     steps:
       - name: Download image artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
         with:
           name: ${{ inputs.image-name }}
       - name: Successfully Deployed
