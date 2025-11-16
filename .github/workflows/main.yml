@@ -1,7 +1,7 @@
 name: Sandbox Workflow
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       image-name:
         required: true
