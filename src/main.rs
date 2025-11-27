@@ -34,7 +34,13 @@ fn after_merge_2() -> &'static str {
     "This is the after merge 2 endpoint"
 }
 
+#[get("/after-merge3")]
+fn after_merge_3() -> &'static str {
+    "This is the after merge 3 endpoint"
+}
+
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, test, new_endpoint, squad_1, after_merge, after_merge_2])
+    rocket::build().mount("/", routes![index, test, new_endpoint, squad_1, after_merge, after_merge_2, after_merge_3])
 }
