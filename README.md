@@ -8,3 +8,6 @@ GitHub Actions Sandbox
 - `/new` - New endpoint
 - `/squad-1` - Squad commit 1 (added for PR test)
  - `/after-merge` - This is the after merge endpoint
+ - `/after-merge2` - This is the after merge endpoint
+ - `/after-merge3` - This is the after merge endpoint
+ - `/after-merge4` - This is the after merge endpoint
