@@ -24,7 +24,12 @@ fn squad_1() -> &'static str {
     "Squad commit 1"
 }
 
+#[get("/after-merge")]
+fn after_merge() -> &'static str {
+    "This is the after merge endpoint"
+}
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, test, new_endpoint, squad_1])
+    rocket::build().mount("/", routes![index, test, new_endpoint, squad_1, after_merge])
 }
